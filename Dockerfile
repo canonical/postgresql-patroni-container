@@ -16,3 +16,6 @@ RUN echo 'APT::Install-Recommends "0";\nAPT::Install-Suggests "0";' > /etc/apt/a
 
 # Expose PostgreSQL and Patroni REST API ports.
 EXPOSE 5432 8008
+# Default environment variables.
+ENV PATRONI_SUPERUSER_USERNAME=postgres
+ENV PATRONI_REPLICATION_USERNAME=replication
