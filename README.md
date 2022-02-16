@@ -60,6 +60,8 @@ Some additional [environment variables](https://patroni.readthedocs.io/en/latest
   - Labels applied to the created pods and which are used by Patroni to find the members of a cluster and replicate the data.
 - `PATRONI_KUBERNETES_NAMESPACE`
   - Namespace where the pods are created.
+- `PATRONI_KUBERNETES_POD_IP`
+  - IP of the current pod (this variable is required only when deploying the image directly to a cluster i.e. not in a charm which replaces the pod IP in the `patroni.yml` file).
 - `PATRONI_NAME`
   - Name of the member in the cluster (for example, the pod name, such as postgresql-k8s-0).
 - `PATRONI_SCOPE`

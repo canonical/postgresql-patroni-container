@@ -19,3 +19,10 @@ EXPOSE 5432 8008
 # Default environment variables.
 ENV PATRONI_SUPERUSER_USERNAME=postgres
 ENV PATRONI_REPLICATION_USERNAME=replication
+
+# User which should own Patroni and PostgreSQL processes.
+USER postgres
+
+COPY entrypoint.sh /
+
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
