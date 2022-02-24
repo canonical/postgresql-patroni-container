@@ -1,8 +1,8 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-# CI testing for building PostgreSQL + Patroni docker image.
-name: Build
+# CI testing for building and deploying PostgreSQL + Patroni docker image.
+name: Build and deploy
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Build Image
+      - name: Build Image and Export
         uses: docker/build-push-action@v2
         with:
           context: ./
@@ -26,3 +26,74 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           # Do not publish the image.
           push: false
+          # Set the tag to retrieve the image in Deploy tests.
+          tags: postgresql-patroni
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload image for next step
+        uses: actions/upload-artifact@v2
+        with:
+          name: image
+          path: /tmp/image.tar
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up microk8s
+        run: |
+          sudo snap install --classic microk8s
+          sudo usermod -a -G microk8s $USER
+          sudo microk8s status --wait-ready
+          sudo snap install kubectl --classic
+          
+          # Write configuration to file for kubectl.
+          mkdir -p ${HOME}/.kube
+          /usr/bin/sg microk8s -c "microk8s config > ${HOME}/.kube/config"
+
+      - name: Download Image
+        uses: actions/download-artifact@v2
+        with:
+          name: image
+          path: /tmp
+
+      - name: Load Image into microk8s
+        run: |
+          /usr/bin/sg microk8s -c "microk8s ctr image import /tmp/image.tar"
+
+      - name: Deploy Image through Pods
+        id: deploy
+        run: |
+          # Deploy three pods to create a cluster with a leader and two replicas.
+          for i in 0 1 2
+          do
+          # Pass environment variables and labels needed by Patroni and also overrides required to pass the pod IP to Patroni.
+          kubectl run pg-$i --image=postgresql-patroni:latest --image-pull-policy IfNotPresent \
+            --env 'PATRONI_KUBERNETES_LABELS={application: patroni, cluster-name: pg}' \
+            --env 'PATRONI_KUBERNETES_NAMESPACE=default' \
+            --env "PATRONI_NAME=pg-$i" \
+            --env 'PATRONI_SCOPE=pg' \
+            --env 'PATRONI_REPLICATION_PASSWORD=${{ secrets.PATRONI_REPLICATION_PASSWORD }}' \
+            --env 'PATRONI_SUPERUSER_PASSWORD=${{ secrets.PATRONI_SUPERUSER_PASSWORD }}' \
+            --labels 'application=patroni,cluster-name=pg' \
+            --override-type='strategic' \
+            --overrides='{"spec": {"containers": [{"name": "pg-'$i'","env": [{"name": "PATRONI_KUBERNETES_POD_IP","valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}}]}]}}'
+          done
+
+          # Wait for the pods to be in the running state (so we can retrieve their IPs).
+          kubectl wait pods -l application=patroni --for=jsonpath='{.status.phase}'='Running'
+          
+          # Get the pods IPs and build URLs pointing to the Patroni API health endpoint as an output to be used in the next step.
+          urls=$(kubectl get pods -l application=patroni -o jsonpath="{range .items[*]}{.status.podIP}:8008/health|{end}")
+          echo ::set-output name=urls::${urls::-1}
+
+      - name: Check Workloads
+        uses: jtalk/url-health-check-action@v2
+        with:
+          # Check the URLs in the list one by one sequentially
+          url: ${{ steps.deploy.outputs.urls }}
+          # Fail this action after this many failed attempts
+          max-attempts: 5
+          # Delay between retries
+          retry-delay: 5s
