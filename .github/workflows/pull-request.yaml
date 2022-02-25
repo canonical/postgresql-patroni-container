@@ -30,7 +30,7 @@ jobs:
           tags: postgresql-patroni
           outputs: type=docker,dest=/tmp/image.tar
 
-      - name: Upload image for next step
+      - name: Upload image to be used in Deploy tests
         uses: actions/upload-artifact@v2
         with:
           name: image
@@ -52,7 +52,7 @@ jobs:
           mkdir -p ${HOME}/.kube
           /usr/bin/sg microk8s -c "microk8s config > ${HOME}/.kube/config"
 
-      - name: Download Image
+      - name: Download image built in Build tests
         uses: actions/download-artifact@v2
         with:
           name: image
