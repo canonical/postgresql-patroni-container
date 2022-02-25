@@ -1,3 +1,7 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# Linter for CI of the PostgreSQL + Patroni docker image.
 name: Lint (Hadolint)
 
 on:

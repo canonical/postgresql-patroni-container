@@ -1,3 +1,7 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# CI testing for building PostgreSQL + Patroni docker image.
 name: Build
 
 on:
@@ -22,5 +26,3 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           # Do not publish the image.
           push: false
-          # Set the tag.
-          tags: postgresql-patroni
