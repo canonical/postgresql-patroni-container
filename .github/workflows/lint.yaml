@@ -1,0 +1,24 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# Linter for CI of the PostgreSQL + Patroni docker image.
+name: Lint (Hadolint)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Lint
+        uses: hadolint/hadolint-action@v1.6.0
+        with:
+          dockerfile: Dockerfile
