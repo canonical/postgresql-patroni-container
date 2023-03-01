@@ -4,6 +4,10 @@
 # Linter for CI of the PostgreSQL + Patroni docker image.
 name: Lint (Hadolint)
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
   push:
@@ -13,6 +17,7 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
